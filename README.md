@@ -1,1 +1,3 @@
-# wasm-rosette
+rocinante-rosette
+=================
+README text here.
