@@ -1,5 +1,7 @@
 #lang rosette
 
+(require rosette/lib/synthax)
+
 (module+ test
   (require rackunit))
 
@@ -27,7 +29,7 @@
 
 ;; current-bitwidth is set to #f (false) to be consistent with Racket's infinite-precision semantics
 ;; Setting this to a specific value like 5, would let us consider constants within specific range.
-(current-bitwidth 5)
+(current-bitwidth 32)
 
 (struct i32.add () #:transparent)
 (struct i32.shl () #:transparent)
@@ -53,27 +55,30 @@
 (assert (equal? (do-binop (i32.add) (bv 3 32) (bv 4 32)) (bv 7 32)))
 (assert (equal? (do-binop (i32.shl) (bv 1 32) (bv 2 32)) (bv 4 32)))
 
-(println (cons (do-binop (i32.add) (bv 3 32) (bv 4 32)) (list (bv 8 32))))
-
-(define locals (list->vector (list (bv 2 32))))
+(assert 
+  (equal? 
+    (cons (do-binop (i32.add) (bv 3 32) (bv 4 32)) (list (bv 8 32)))
+    (list (bv 7 32) (bv 8 32))
+  )
+)
 
 (define (interpret instrs locals)
   (define (interpret-instr instr stack)
     (match instr
-      [(i32.add) 
+      [(i32.add)
         (define result
-          (bvadd (first stack) (second stack))
+          (bvadd (second stack) (first stack))
         )
         (cons result (drop stack 2))
       ]
       [(i32.shl) 
         (define result
-          (bvshl (first stack) (second stack))
+          (bvshl (second stack) (first stack))
         )
         (cons result (drop stack 2))
       ]
       [(i32.const c)
-        (cons (integer->bitvector c (bitvector 32)))
+        (cons (integer->bitvector c (bitvector 32)) stack)
       ]
       [(local.get i)
         (cons (vector-ref locals i) stack)
@@ -90,10 +95,44 @@
 
 (assert 
   (equal? 
-    (interpret prog locals) 
+    (interpret prog (list->vector (list (bv 2 32)))) 
     (list (bv 4 32))
   )
 )
+
+(define prog-shl
+  (list (local.get 0) (i32.const 1) (i32.shl))
+)
+
+(assert 
+  (equal? 
+    (interpret prog-shl (list->vector (list (bv 2 32)))) 
+    (list (bv 4 32))
+  )
+)
+
+(define-symbolic c integer?)
+
+(define sketch
+  (list (local.get 0) (i32.const c) (i32.shl))
+)
+
+(define-symbolic x (bitvector 32))
+(define locals (list->vector (list x)))
+
+(define M
+  (synthesize
+    #:forall (list x)
+    #:guarantee (assert
+      (equal?
+        (interpret prog locals)
+        (interpret sketch locals)
+      )
+    )
+  )
+)
+
+(evaluate sketch M)
 
 (module+ test
   ;; Any code in this `test` submodule runs when this file is run using DrRacket
