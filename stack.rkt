@@ -1,6 +1,8 @@
 #lang rosette
 
 (require rosette/lib/synthax)
+(require rosette/lib/angelic)
+(require rosette/lib/match)
 
 (module+ test
   (require rackunit))
@@ -55,8 +57,8 @@
 (assert (equal? (do-binop (i32.add) (bv 3 32) (bv 4 32)) (bv 7 32)))
 (assert (equal? (do-binop (i32.shl) (bv 1 32) (bv 2 32)) (bv 4 32)))
 
-(assert 
-  (equal? 
+(assert
+  (equal?
     (cons (do-binop (i32.add) (bv 3 32) (bv 4 32)) (list (bv 8 32)))
     (list (bv 7 32) (bv 8 32))
   )
@@ -71,7 +73,7 @@
         )
         (cons result (drop stack 2))
       ]
-      [(i32.shl) 
+      [(i32.shl)
         (define result
           (bvshl (second stack) (first stack))
         )
@@ -93,9 +95,9 @@
   (list (local.get 0) (local.get 0) (i32.add))
 )
 
-(assert 
-  (equal? 
-    (interpret prog (list->vector (list (bv 2 32)))) 
+(assert
+  (equal?
+    (interpret prog (list->vector (list (bv 2 32))))
     (list (bv 4 32))
   )
 )
@@ -104,9 +106,9 @@
   (list (local.get 0) (i32.const 1) (i32.shl))
 )
 
-(assert 
-  (equal? 
-    (interpret prog-shl (list->vector (list (bv 2 32)))) 
+(assert
+  (equal?
+    (interpret prog-shl (list->vector (list (bv 2 32))))
     (list (bv 4 32))
   )
 )
@@ -134,10 +136,37 @@
 
 (evaluate sketch M)
 
+(define (synthesizer n)
+  (for/list ([i n])
+    (choose* (i32.shl) (i32.const (??)) (local.get (??)))
+  )
+)
+
+(assert (equal? (length (synthesizer 3)) 3))
+
+(define-symbolic y (bitvector 32))
+(define ylocals (list->vector (list y)))
+
+(define candidate (synthesizer (length prog)))
+
+(define model
+  (synthesize
+    #:forall (list y)
+    #:guarantee (assert
+      (equal?
+        (interpret prog ylocals)
+        (interpret candidate ylocals)
+      )
+    )
+  )
+)
+
+(evaluate candidate model)
+
 (module+ test
   ;; Any code in this `test` submodule runs when this file is run using DrRacket
   ;; or with `raco test`. The code here does not run when this file is
   ;; required by another module.
 
-  (check-equal? (+ 2 2) 4)  
+  (check-equal? (+ 2 2) 4)
 )
