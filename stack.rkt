@@ -38,6 +38,7 @@
 (struct i32.const (c) #:transparent)
 (struct local.get (i) #:transparent)
 
+;; Manipulating list
 (define l (list 1 2 3))
 (define one (first l))
 (define two (second l))
@@ -47,6 +48,7 @@
 (assert (equal? two 2))
 (assert (equal? three '(3)))
 
+;; Simple evaluator for binops
 (define (do-binop instr lhs rhs)
   (match instr
     [(i32.add) (bvadd lhs rhs)]
@@ -64,6 +66,7 @@
   )
 )
 
+;; Interpreter for above instructions
 (define (interpret instrs locals)
   (define (interpret-instr instr stack)
     (match instr
@@ -91,10 +94,12 @@
   (foldl interpret-instr empty instrs)
 )
 
+;; Now define spec program
 (define prog
   (list (local.get 0) (local.get 0) (i32.add))
 )
 
+;; Test the interpreter
 (assert
   (equal?
     (interpret prog (list->vector (list (bv 2 32))))
@@ -102,6 +107,7 @@
   )
 )
 
+;; Spec program using shl
 (define prog-shl
   (list (local.get 0) (i32.const 1) (i32.shl))
 )
@@ -115,6 +121,7 @@
 
 (define-symbolic c integer?)
 
+;; A sketch to check whether hole based synthesis works with abaove interpreter.
 (define sketch
   (list (local.get 0) (i32.const c) (i32.shl))
 )
@@ -136,6 +143,7 @@
 
 (evaluate sketch M)
 
+;; Given n, generates a list of symbolic instructions
 (define (synthesizer n)
   (for/list ([i n])
     (choose* (i32.shl) (i32.const (??)) (local.get (??)))
