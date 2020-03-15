@@ -148,9 +148,9 @@
 (define (syn spec)
   (define candidate
     (for/list ([i (length spec)])
-      (choose*
-        (I32.Add) (I32.Sub) (I32.Mul) (I32.DivS) (I32.DivU) (I32.RemS) (I32.RemU) (I32.And) (I32.Or)
-        (I32.Xor) (I32.Shl) (I32.ShrS) (I32.ShrU) (I32.Const (??)) (Local.Get (??))
+      (apply choose*
+        (shuffle (list (I32.Add) (I32.Sub) (I32.Mul) (I32.DivS) (I32.DivU) (I32.RemS) (I32.RemU) (I32.And) (I32.Or)
+        (I32.Xor) (I32.Shl) (I32.ShrS) (I32.ShrU) (I32.Const (??)) (Local.Get (??))))
       )
     )
   )
@@ -172,7 +172,7 @@
   (evaluate candidate model)
 )
 
-(syn (list (Local.Get 0) (I32.Const 1) (I32.Sub) (Local.Get 0) (I32.And)))
+(syn (list (Local.Get 0) (Local.Get 0) (I32.Add)))
 
 (module+ test
   ;; Any code in this `test` submodule runs when this file is run using DrRacket
