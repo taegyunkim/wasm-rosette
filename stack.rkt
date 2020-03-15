@@ -31,61 +31,112 @@
 
 ;; current-bitwidth is set to #f (false) to be consistent with Racket's infinite-precision semantics
 ;; Setting this to a specific value like 5, would let us consider constants within specific range.
-(current-bitwidth 32)
+(current-bitwidth 5)
 
-(struct i32.add () #:transparent)
-(struct i32.shl () #:transparent)
-(struct i32.const (c) #:transparent)
-(struct local.get (i) #:transparent)
-
-;; Manipulating list
-(define l (list 1 2 3))
-(define one (first l))
-(define two (second l))
-(define three (rest (rest l)))
-
-(assert (equal? one 1))
-(assert (equal? two 2))
-(assert (equal? three '(3)))
-
-;; Simple evaluator for binops
-(define (do-binop instr lhs rhs)
-  (match instr
-    [(i32.add) (bvadd lhs rhs)]
-    [(i32.shl) (bvshl lhs rhs)]
-  )
-)
-
-(assert (equal? (do-binop (i32.add) (bv 3 32) (bv 4 32)) (bv 7 32)))
-(assert (equal? (do-binop (i32.shl) (bv 1 32) (bv 2 32)) (bv 4 32)))
-
-(assert
-  (equal?
-    (cons (do-binop (i32.add) (bv 3 32) (bv 4 32)) (list (bv 8 32)))
-    (list (bv 7 32) (bv 8 32))
-  )
-)
+(struct I32.Add () #:transparent)
+(struct I32.Sub () #:transparent)
+(struct I32.Mul () #:transparent)
+(struct I32.DivS () #:transparent)
+(struct I32.DivU () #:transparent)
+(struct I32.RemS () #:transparent)
+(struct I32.RemU () #:transparent)
+(struct I32.And () #:transparent)
+(struct I32.Or () #:transparent)
+(struct I32.Xor () #:transparent)
+(struct I32.Shl () #:transparent)
+(struct I32.ShrS () #:transparent)
+(struct I32.ShrU () #:transparent)
+;; I32.Rotl
+;; I32.Rotr
+(struct I32.Const (c) #:transparent)
+(struct Local.Get (i) #:transparent)
 
 ;; Interpreter for above instructions
 (define (interpret instrs locals)
   (define (interpret-instr instr stack)
     (match instr
-      [(i32.add)
+      [(I32.Add)
         (define result
           (bvadd (second stack) (first stack))
         )
         (cons result (drop stack 2))
       ]
-      [(i32.shl)
+      [(I32.Sub)
+        (define result
+          (bvsub (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.Mul)
+        (define result
+          (bvmul (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.DivS)
+        (define result
+          (bvsdiv (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.DivU)
+        (define result
+          (bvudiv (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.RemS)
+        (define result
+          (bvsrem (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.RemU)
+        (define result
+          (bvurem (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.And)
+        (define result
+          (bvand (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.Or)
+        (define result
+          (bvor (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.Xor)
+        (define result
+          (bvxor (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.Shl)
         (define result
           (bvshl (second stack) (first stack))
         )
         (cons result (drop stack 2))
       ]
-      [(i32.const c)
+      [(I32.ShrS)
+        (define result
+          (bvashr (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.ShrU)
+        (define result
+          (bvlshr (second stack) (first stack))
+        )
+        (cons result (drop stack 2))
+      ]
+      [(I32.Const c)
         (cons (integer->bitvector c (bitvector 32)) stack)
       ]
-      [(local.get i)
+      [(Local.Get i)
         (cons (vector-ref locals i) stack)
       ]
     )
@@ -94,87 +145,86 @@
   (foldl interpret-instr empty instrs)
 )
 
-;; Now define spec program
-(define prog
-  (list (local.get 0) (local.get 0) (i32.add))
-)
-
-;; Test the interpreter
-(assert
-  (equal?
-    (interpret prog (list->vector (list (bv 2 32))))
-    (list (bv 4 32))
-  )
-)
-
-;; Spec program using shl
-(define prog-shl
-  (list (local.get 0) (i32.const 1) (i32.shl))
-)
-
-(assert
-  (equal?
-    (interpret prog-shl (list->vector (list (bv 2 32))))
-    (list (bv 4 32))
-  )
-)
-
-(define-symbolic c integer?)
-
-;; A sketch to check whether hole based synthesis works with abaove interpreter.
-(define sketch
-  (list (local.get 0) (i32.const c) (i32.shl))
-)
-
-(define-symbolic x (bitvector 32))
-(define locals (list->vector (list x)))
-
-(define M
-  (synthesize
-    #:forall (list x)
-    #:guarantee (assert
-      (equal?
-        (interpret prog locals)
-        (interpret sketch locals)
+(define (syn spec)
+  (define candidate
+    (for/list ([i (length spec)])
+      (choose*
+        (I32.Add) (I32.Sub) (I32.Mul) (I32.DivS) (I32.DivU) (I32.RemS) (I32.RemU) (I32.And) (I32.Or)
+        (I32.Xor) (I32.Shl) (I32.ShrS) (I32.ShrU) (I32.Const (??)) (Local.Get (??))
       )
     )
   )
-)
 
-(evaluate sketch M)
-
-;; Given n, generates a list of symbolic instructions
-(define (synthesizer n)
-  (for/list ([i n])
-    (choose* (i32.shl) (i32.const (??)) (local.get (??)))
-  )
-)
-
-(assert (equal? (length (synthesizer 3)) 3))
-
-(define-symbolic y (bitvector 32))
-(define ylocals (list->vector (list y)))
-
-(define candidate (synthesizer (length prog)))
-
-(define model
-  (synthesize
-    #:forall (list y)
-    #:guarantee (assert
-      (equal?
-        (interpret prog ylocals)
-        (interpret candidate ylocals)
-      )
+  (define-symbolic x (bitvector 32))
+  (define locals (list->vector (list x)))
+  (define model
+    (synthesize
+        #:forall (list x)
+        #:guarantee (assert
+          (equal?
+            (interpret spec locals)
+            (interpret candidate locals)
+          )
+        )
     )
   )
+
+  (evaluate candidate model)
 )
 
-(evaluate candidate model)
+(syn (list (Local.Get 0) (I32.Const 1) (I32.Sub) (Local.Get 0) (I32.And)))
 
 (module+ test
   ;; Any code in this `test` submodule runs when this file is run using DrRacket
   ;; or with `raco test`. The code here does not run when this file is
   ;; required by another module.
 
-  (check-equal? (+ 2 2) 4)
+  ;; Test the interpreter
+  (check-equal?
+    (interpret
+      (list (Local.Get 0) (Local.Get 0) (I32.Add))
+      (list->vector (list (bv 2 32)))
+    )
+    (list (bv 4 32))
+  )
+
+  (check-equal?
+    (interpret
+      (list (I32.Const 2) (I32.Const 1) (I32.Sub))
+      (list->vector empty)
+    )
+    (list (bv 1 32))
+  )
+
+  (check-equal?
+    (interpret
+      (list (I32.Const 3) (I32.Const 5) (I32.Mul))
+      (list->vector empty)
+    )
+    (list (bv 15 32))
+  )
+
+  (check-equal?
+    (interpret
+      (list (I32.Const -2) (I32.Const 1) (I32.DivS))
+      (list->vector empty)
+    )
+    (list (bv -2 32))
+  )
+
+  (check-equal?
+    (interpret
+      (list (I32.Const -1) (I32.Const -1) (I32.DivU))
+      (list->vector empty)
+    )
+    (list (bv 1 32))
+  )
+
+  (check-equal?
+    (interpret
+      (list (I32.Const -5) (I32.Const 2) (I32.DivU))
+      (list->vector empty)
+    )
+    (list (bv #x7ffffffd 32))
+  )
 )
