@@ -31,7 +31,7 @@
 
 ;; current-bitwidth is set to #f (false) to be consistent with Racket's infinite-precision semantics
 ;; Setting this to a specific value like 5, would let us consider constants within specific range.
-(current-bitwidth 5)
+(current-bitwidth 32)
 
 (struct I32.Add () #:transparent)
 (struct I32.Sub () #:transparent)
@@ -46,8 +46,8 @@
 (struct I32.Shl () #:transparent)
 (struct I32.ShrS () #:transparent)
 (struct I32.ShrU () #:transparent)
-;; I32.Rotl
-;; I32.Rotr
+(struct I32.Rotl () #:transparent)
+(struct I32.Rotr () #:transparent)
 (struct I32.Const (c) #:transparent)
 (struct Local.Get (i) #:transparent)
 
@@ -133,6 +133,13 @@
          )
        (cons result (drop stack 2))
        ]
+      [(I32.Rotl)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define rotate_cnt (bvand rhs (bv 31 32)))
+       (define result
+         (bvor (bvshl lhs rotate_cnt) (bvlshr lhs (bvsub (bv 32 32) rotate_cnt))))
+       (cons result (drop stack 2))]
       [(I32.Const c)
        (cons (integer->bitvector c (bitvector 32)) stack)
        ]
@@ -245,4 +252,18 @@
     x
     (bv 4 32)
     )
+
+  (check-equal? (interpret (list (I32.Const 1) (I32.Const 1) (I32.Rotl))
+                           (list->vector empty))
+                (list (bv 2 32)))
+  (check-equal? (interpret (list (I32.Const 1) (I32.Const 0) (I32.Rotl))
+                           (list->vector empty))
+                (list (bv 1 32)))
+  (check-equal? (interpret (list (I32.Const -1) (I32.Const 1) (I32.Rotl))
+                           (list->vector empty))
+                (list (bv -1 32)))
+  (check-equal? (interpret (list (I32.Const #xabcd9876) (I32.Const 1)
+                                 (I32.Rotl))
+                           (list->vector empty))
+                (list (bv #x579b30ed 32)))
   )
