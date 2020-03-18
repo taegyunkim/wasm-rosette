@@ -140,6 +140,13 @@
        (define result
          (bvor (bvshl lhs rotate_cnt) (bvlshr lhs (bvsub (bv 32 32) rotate_cnt))))
        (cons result (drop stack 2))]
+      [(I32.Rotr)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define rotate_cnt (bvand rhs (bv 31 32)))
+       (define result
+         (bvor (bvlshr lhs rotate_cnt) (bvshl lhs (bvsub (bv 32 32) rotate_cnt))))
+       (cons result (drop stack 2))]
       [(I32.Const c)
        (cons (integer->bitvector c (bitvector 32)) stack)
        ]
@@ -266,4 +273,17 @@
                                  (I32.Rotl))
                            (list->vector empty))
                 (list (bv #x579b30ed 32)))
+
+
+  ;; rotr tests
+  (check-equal? (interpret (list (I32.Const 1) (I32.Const 0) (I32.Rotr))
+                           (list->vector empty))
+                (list (bv 1 32)))
+  (check-equal? (interpret (list (I32.Const 1) (I32.Const 1) (I32.Rotr))
+                           (list->vector empty))
+                (list (bv #x80000000 32)))
+  (check-equal? (interpret (list (I32.Const 1) (I32.Const 32) (I32.Rotr))
+                           (list->vector empty))
+                (list (bv 1 32)))
+
   )
