@@ -156,10 +156,11 @@
   )
 
   (define-symbolic x (bitvector 32))
-  (define locals (list->vector (list x)))
+  (define-symbolic y (bitvector 32))
+  (define locals (list->vector (list x y)))
   (define model
     (synthesize
-        #:forall (list x)
+        #:forall (list x y)
         #:guarantee (assert
           (equal?
             (interpret spec locals)
@@ -172,7 +173,8 @@
   (evaluate candidate model)
 )
 
-(syn (list (Local.Get 0) (Local.Get 0) (I32.Add)))
+(syn (list (Local.Get 0) (Local.Get 1) (I32.Xor) (Local.Get 0) (Local.Get 1)
+(I32.And) (I32.And)))
 
 (module+ test
   ;; Any code in this `test` submodule runs when this file is run using DrRacket
@@ -226,5 +228,20 @@
       (list->vector empty)
     )
     (list (bv #x7ffffffd 32))
+  )
+
+  (define x (bv 4 32))
+
+  (check-equal?
+    (interpret
+      (list (Local.Get 0) (I32.Const 2) (I32.Mul))
+      (list->vector (list x))
+    )
+    (list (bv 8 32))
+  )
+
+  (check-equal?
+    x
+    (bv 4 32)
   )
 )
