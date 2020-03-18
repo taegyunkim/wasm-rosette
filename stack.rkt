@@ -56,125 +56,126 @@
   (define (interpret-instr instr stack)
     (match instr
       [(I32.Add)
-        (define result
-          (bvadd (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvadd (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.Sub)
-        (define result
-          (bvsub (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvsub (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.Mul)
-        (define result
-          (bvmul (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvmul (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.DivS)
-        (define result
-          (bvsdiv (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvsdiv (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.DivU)
-        (define result
-          (bvudiv (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvudiv (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.RemS)
-        (define result
-          (bvsrem (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvsrem (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.RemU)
-        (define result
-          (bvurem (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvurem (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.And)
-        (define result
-          (bvand (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvand (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.Or)
-        (define result
-          (bvor (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvor (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.Xor)
-        (define result
-          (bvxor (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvxor (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.Shl)
-        (define result
-          (bvshl (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvshl (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.ShrS)
-        (define result
-          (bvashr (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvashr (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.ShrU)
-        (define result
-          (bvlshr (second stack) (first stack))
-        )
-        (cons result (drop stack 2))
-      ]
+       (define result
+         (bvlshr (second stack) (first stack))
+         )
+       (cons result (drop stack 2))
+       ]
       [(I32.Const c)
-        (cons (integer->bitvector c (bitvector 32)) stack)
-      ]
+       (cons (integer->bitvector c (bitvector 32)) stack)
+       ]
       [(Local.Get i)
-        (cons (vector-ref locals i) stack)
-      ]
+       (cons (vector-ref locals i) stack)
+       ]
+      )
     )
-  )
 
   (foldl interpret-instr empty instrs)
-)
+  )
 
 (define (syn spec)
   (define candidate
     (for/list ([i (length spec)])
       (apply choose*
-        (shuffle (list (I32.Add) (I32.Sub) (I32.Mul) (I32.DivS) (I32.DivU) (I32.RemS) (I32.RemU) (I32.And) (I32.Or)
-        (I32.Xor) (I32.Shl) (I32.ShrS) (I32.ShrU) (I32.Const (??)) (Local.Get (??))))
+             (shuffle
+               (list (I32.Add) (I32.Sub) (I32.Mul) (I32.DivS) (I32.DivU) (I32.RemS) (I32.RemU) (I32.And) (I32.Or)
+                     (I32.Xor) (I32.Shl) (I32.ShrS) (I32.ShrU) (I32.Const (??)) (Local.Get (??))))
+             )
       )
     )
-  )
 
   (define-symbolic x (bitvector 32))
   (define-symbolic y (bitvector 32))
   (define locals (list->vector (list x y)))
   (define model
     (synthesize
-        #:forall (list x y)
-        #:guarantee (assert
-          (equal?
-            (interpret spec locals)
-            (interpret candidate locals)
-          )
-        )
+      #:forall (list x y)
+      #:guarantee (assert
+                    (equal?
+                      (interpret spec locals)
+                      (interpret candidate locals)
+                      )
+                    )
+      )
     )
-  )
 
   (evaluate candidate model)
-)
+  )
 
-(syn (list (Local.Get 0) (Local.Get 1) (I32.Xor) (Local.Get 0) (Local.Get 1)
-(I32.And) (I32.And)))
+;; (syn (list (Local.Get 0) (Local.Get 1) (I32.Xor) (Local.Get 0) (Local.Get 1)
+;;            (I32.And) (I32.And)))
 
 (module+ test
   ;; Any code in this `test` submodule runs when this file is run using DrRacket
@@ -186,49 +187,49 @@
     (interpret
       (list (Local.Get 0) (Local.Get 0) (I32.Add))
       (list->vector (list (bv 2 32)))
-    )
+      )
     (list (bv 4 32))
-  )
+    )
 
   (check-equal?
     (interpret
       (list (I32.Const 2) (I32.Const 1) (I32.Sub))
       (list->vector empty)
-    )
+      )
     (list (bv 1 32))
-  )
+    )
 
   (check-equal?
     (interpret
       (list (I32.Const 3) (I32.Const 5) (I32.Mul))
       (list->vector empty)
-    )
+      )
     (list (bv 15 32))
-  )
+    )
 
   (check-equal?
     (interpret
       (list (I32.Const -2) (I32.Const 1) (I32.DivS))
       (list->vector empty)
-    )
+      )
     (list (bv -2 32))
-  )
+    )
 
   (check-equal?
     (interpret
       (list (I32.Const -1) (I32.Const -1) (I32.DivU))
       (list->vector empty)
-    )
+      )
     (list (bv 1 32))
-  )
+    )
 
   (check-equal?
     (interpret
       (list (I32.Const -5) (I32.Const 2) (I32.DivU))
       (list->vector empty)
-    )
+      )
     (list (bv #x7ffffffd 32))
-  )
+    )
 
   (define x (bv 4 32))
 
@@ -236,12 +237,12 @@
     (interpret
       (list (Local.Get 0) (I32.Const 2) (I32.Mul))
       (list->vector (list x))
-    )
+      )
     (list (bv 8 32))
-  )
+    )
 
   (check-equal?
     x
     (bv 4 32)
+    )
   )
-)
