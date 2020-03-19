@@ -74,14 +74,16 @@
     ;; Interpret a binary operator.
     (define (interpret-binop op)
       (match-let-values ([((list rhs lhs) stack) (split-at stack 2)])
-        (cons (op lhs rhs) stack)))
+                        (cons (op lhs rhs) stack)))
 
     (define (interpret-unop op)
       (match-let-values ([((list operand) stack) (split-at stack 1)])
-        (cons (op operand) stack)))
+                        (cons (op operand) stack)))
 
     (define (interpret-relop op)
-      (interpret-binop (lambda (lhs rhs) (if (op lhs rhs) (bv 1 32) (bv 0 32)))))
+      (interpret-binop (lambda (lhs rhs) (if (op lhs rhs)
+                                             (bv 1 32)
+                                             (bv 0 32)))))
 
     (define (bvrotl lhs rhs)
       (define rotate_cnt (bvand rhs (bv 31 32)))
@@ -97,26 +99,28 @@
     (define (bvclz s x)
       (define (loop acc n)
         (if (bveq n (bv 0 s))
-          s
-          (if (bveq (bvand n (bvshl (bv 1 s) (bv (- s 1) s))) (bv 0 s))
-            (loop (+ acc 1) (bvshl n (bv 1 s)))
-            acc)))
+            s
+            (if (bveq (bvand n (bvshl (bv 1 s) (bv (- s 1) s))) (bv 0 s))
+                (loop (+ acc 1) (bvshl n (bv 1 s)))
+                acc)))
       (bv (loop 0 x) s))
 
     (define (bvctz s x)
       (define (loop acc n)
         (if (bveq n (bv 0 s))
-          s
-          (if (bveq (bvand n (bv 1 s)) (bv 1 s))
-            acc
-            (loop (+ acc 1) (bvlshr n (bv 1 s))))))
+            s
+            (if (bveq (bvand n (bv 1 s)) (bv 1 s))
+                acc
+                (loop (+ acc 1) (bvlshr n (bv 1 s))))))
       (bv (loop 0 x) s))
 
     (define (bvpopcnt s x)
       (define (loop acc n)
         (if (bveq n (bv 0 s))
-          acc
-          (loop (if (bveq (bvand n (bv 1 s)) (bv 1 s)) (+ acc 1) acc) (bvlshr n (bv 1 s)))))
+            acc
+            (loop (if (bveq (bvand n (bv 1 s)) (bv 1 s))
+                      (+ acc 1) acc)
+                  (bvlshr n (bv 1 s)))))
       (bv (loop 0 x ) s))
 
     (match instr
@@ -140,8 +144,10 @@
       [(I32.Popcnt) (interpret-unop ((curry bvpopcnt) 32))]
       [(I32.Eqz)
        (match-let-values ([((list operand) stack) (split-at stack 1)])
-         (define result (if (bveq operand (bv 0 32)) (bv 1 32) (bv 0 32)))
-         (cons result stack))]
+                         (define result (if (bveq operand (bv 0 32))
+                                            (bv 1 32)
+                                            (bv 0 32)))
+                         (cons result stack))]
       [(I32.Eq) (interpret-relop bveq)]
       [(I32.Ne) (interpret-relop (not (bveq)))]
       [(I32.LtS) (interpret-relop bvslt)]
@@ -158,8 +164,8 @@
        (cons (vector-ref locals i) stack)]
       [(Local.Set i)
        (match-let-values ([((list operand) stack) (split-at stack 1)])
-         (vector-set! locals i operand)
-         stack)]
+                         (vector-set! locals i operand)
+                         stack)]
       [(Local.Tee i)
        (vector-set! locals i (first stack))
        stack]))
@@ -171,21 +177,24 @@
     (for/list ([i (length spec)])
       (apply choose*
              (shuffle
-               (list (I32.Add) (I32.Sub) (I32.Mul) (I32.DivS) (I32.DivU) (I32.RemS) (I32.RemU) (I32.And) (I32.Or)
-                     (I32.Xor) (I32.Shl) (I32.ShrS) (I32.ShrU) (I32.Const (??)) (Local.Get (??)))))))
+              (list (I32.Add) (I32.Sub) (I32.Mul) (I32.DivS) (I32.DivU)
+                    (I32.RemS) (I32.RemU) (I32.And) (I32.Or) (I32.Xor)
+                    (I32.Shl) (I32.ShrS) (I32.ShrU) (I32.Const (??))
+                    (Local.Get (??)))))))
 
   (define-symbolic x (bitvector 32))
   (define locals (list->vector (list x)))
   (define model
     (synthesize
-      #:forall (list x)
-      #:guarantee (assert (equal? (interpret spec locals) (interpret candidate locals)))))
+     #:forall (list x)
+     #:guarantee (assert (equal? (interpret spec locals)
+                                 (interpret candidate locals)))))
 
   (evaluate candidate model))
 
 (module+ test
-  ;; Any code in this `test` submodule runs when this file is run using DrRacket
-  ;; or with `raco test`. The code here does not run when this file is
+  ;; Any code in this `test` submodule runs when this file is run using
+  ;; DrRacket or with `raco test`. The code here does not run when this file is
   ;; required by another module.
 
   ;; Test the interpreter
@@ -201,15 +210,23 @@
                            (list->vector empty))
                 (list (bv 15 32)))
 
-  (check-equal? (interpret (list (I32.Const -2) (I32.Const 1) (I32.DivS)) (list->vector empty)) (list (bv -2 32)))
+  (check-equal? (interpret (list (I32.Const -2) (I32.Const 1) (I32.DivS))
+                           (list->vector empty))
+                (list (bv -2 32)))
 
-  (check-equal? (interpret (list (I32.Const -1) (I32.Const -1) (I32.DivU)) (list->vector empty)) (list (bv 1 32)))
+  (check-equal? (interpret (list (I32.Const -1) (I32.Const -1) (I32.DivU))
+                           (list->vector empty))
+                (list (bv 1 32)))
 
-  (check-equal? (interpret (list (I32.Const -5) (I32.Const 2) (I32.DivU)) (list->vector empty)) (list (bv #x7ffffffd 32)))
+  (check-equal? (interpret (list (I32.Const -5) (I32.Const 2) (I32.DivU))
+                           (list->vector empty))
+                (list (bv #x7ffffffd 32)))
 
   (define x (bv 4 32))
 
-  (check-equal? (interpret (list (Local.Get 0) (I32.Const 2) (I32.Mul)) (list->vector (list x))) (list (bv 8 32)))
+  (check-equal? (interpret (list (Local.Get 0) (I32.Const 2) (I32.Mul))
+                           (list->vector (list x)))
+                (list (bv 8 32)))
 
   (check-equal? x (bv 4 32))
 
@@ -281,6 +298,5 @@
   (check-equal? (interpret (list (I32.Const 4) (Local.Tee 0) (Local.Get 0)
                                  (I32.Add))
                            (list->vector (list (bv 0 32))))
-                (list (bv 8 32)))
+                (list (bv 8 32))))
 
-  )
