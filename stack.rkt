@@ -29,8 +29,9 @@
 
 ;; Code here
 
-;; current-bitwidth is set to #f (false) to be consistent with Racket's infinite-precision semantics
-;; Setting this to a specific value like 5, would let us consider constants within specific range.
+;; current-bitwidth is set to #f (false) to be consistent with Racket's
+;; infinite-precision semantics. Setting this to a specific value would let us
+;; consider constants within specific range.
 (current-bitwidth 32)
 
 ;; TODO(taegyunkim): Split out into syntax/ast.rkt
@@ -197,7 +198,7 @@
   ;; DrRacket or with `raco test`. The code here does not run when this file is
   ;; required by another module.
 
-  ;; Test the interpreter
+  ;; TODO(taegyunkim): Test the interpreter using the spec test suites.
   (check-equal? (interpret (list (Local.Get 0) (Local.Get 0) (I32.Add))
                            (list->vector (list (bv 2 32))))
                 (list (bv 4 32)))
