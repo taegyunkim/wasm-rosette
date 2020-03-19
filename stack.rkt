@@ -48,6 +48,20 @@
 (struct I32.ShrU () #:transparent)
 (struct I32.Rotl () #:transparent)
 (struct I32.Rotr () #:transparent)
+(struct I32.Clz () #:transparent)
+(struct I32.Ctz () #:transparent)
+(struct I32.Popcnt () #:transparent)
+(struct I32.Eqz () #:transparent)
+(struct I32.Eq () #:transparent)
+(struct I32.Ne () #:transparent)
+(struct I32.LtS () #:transparent)
+(struct I32.LtU () #:transparent)
+(struct I32.LeS () #:transparent)
+(struct I32.LeU () #:transparent)
+(struct I32.GtS () #:transparent)
+(struct I32.GtU () #:transparent)
+(struct I32.GeS () #:transparent)
+(struct I32.GeU () #:transparent)
 (struct I32.Const (c) #:transparent)
 (struct Local.Get (i) #:transparent)
 
@@ -146,6 +160,81 @@
        (define rotate_cnt (bvand rhs (bv 31 32)))
        (define result
          (bvor (bvlshr lhs rotate_cnt) (bvshl lhs (bvsub (bv 32 32) rotate_cnt))))
+       (cons result (drop stack 2))]
+      [(I32.Clz)
+       (define (loop acc n)
+         (if (bveq n (bv 0 32))
+           32
+           (if (bveq (bvand n (bvshl (bv 1 32) (bv 31 32))) (bv 0 32))
+             (loop (+ acc 1) (bvshl n (bv 1 32)))
+             acc)))
+       (cons (bv (loop 0 (first stack)) 32) (drop stack 1))]
+      [(I32.Ctz)
+       (define (loop acc n)
+         (if (bveq n (bv 0 32))
+           32
+           (if (bveq (bvand n (bv 1 32)) (bv 1 32))
+             acc
+             (loop (+ acc 1) (bvlshr n (bv 1 32))))))
+       (cons (bv (loop 0 (first stack)) 32) (drop stack 1))]
+      [(I32.Popcnt)
+       (define (loop acc n)
+         (if (bveq n (bv 0 32))
+           acc
+           (loop (if (bveq (bvand n (bv 1 32)) (bv 1 32)) (+ acc 1) acc) (bvlshr n (bv 1 32)))))
+       (cons (bv (loop 0 (first stack)) 32) (drop stack 1))]
+      [(I32.Eqz)
+       (define result (if (bveq (stack first) (bv 0 32)) (bv 1 32) (bv 0 32)))
+       (cons result (drop stack 1))]
+      [(I32.Eq)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bveq lhs rhs) (bv 1 32) (bv 0 32)))
+       (cons result (drop stack 2))]
+      [(I32.Ne)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bveq lhs rhs) (bv 0 32) (bv 1 32)))
+       (cons result (drop stack 2))]
+      [(I32.LtS)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bvslt lhs rhs) (bv 1 32) (bv 0 32)))
+       (cons result (drop stack 2))]
+      [(I32.LtU)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bvult lhs rhs) (bv 1 32) (bv 0 32)))
+       (cons result (drop stack 2))]
+      [(I32.LeS)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bvsle lhs rhs) (bv 1 32) (bv 0 32)))
+       (cons result (drop stack 2))]
+      [(I32.LeU)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bvule lhs rhs) (bv 1 32) (bv 0 32)))
+       (cons result (drop stack 2))]
+      [(I32.GtS)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bvsgt lhs rhs) (bv 1 32) (bv 0 32)))
+       (cons result (drop stack 2))]
+      [(I32.GtU)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bvugt lhs rhs) (bv 1 32) (bv 0 32)))
+       (cons result (drop stack 2))]
+      [(I32.GeS)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bvsge lhs rhs) (bv 1 32) (bv 0 32)))
+       (cons result (drop stack 2))]
+      [(I32.GeU)
+       (define lhs (second stack))
+       (define rhs (first stack))
+       (define result (if (bvuge lhs rhs) (bv 1 32) (bv 0 32)))
        (cons result (drop stack 2))]
       [(I32.Const c)
        (cons (integer->bitvector c (bitvector 32)) stack)
@@ -283,6 +372,41 @@
                            (list->vector empty))
                 (list (bv #x80000000 32)))
   (check-equal? (interpret (list (I32.Const 1) (I32.Const 32) (I32.Rotr))
+                           (list->vector empty))
+                (list (bv 1 32)))
+
+  (check-equal? (interpret (list (I32.Const 1) (I32.Const 1) (I32.Eq))
+                           (list->vector empty))
+                (list (bv 1 32)))
+
+  ;; clz tests
+  (check-equal? (interpret (list (I32.Const #xffffffff) (I32.Clz))
+                           (list->vector empty))
+                (list (bv 0 32)))
+  (check-equal? (interpret (list (I32.Const 0) (I32.Clz))
+                           (list->vector empty))
+                (list (bv 32 32)))
+  (check-equal? (interpret (list (I32.Const #x00008000) (I32.Clz))
+                           (list->vector empty))
+                (list (bv 16 32)))
+  ;; ctz tests
+  (check-equal? (interpret (list (I32.Const #xffffffff) (I32.Ctz))
+                           (list->vector empty))
+                (list (bv 0 32)))
+  (check-equal? (interpret (list (I32.Const 0) (I32.Ctz))
+                           (list->vector empty))
+                (list (bv 32 32)))
+  (check-equal? (interpret (list (I32.Const #x00008000) (I32.Ctz))
+                           (list->vector empty))
+                (list (bv 15 32)))
+  ;; popcnt tests
+  (check-equal? (interpret (list (I32.Const #xffffffff) (I32.Popcnt))
+                           (list->vector empty))
+                (list (bv 32 32)))
+  (check-equal? (interpret (list (I32.Const 0) (I32.Popcnt))
+                           (list->vector empty))
+                (list (bv 0 32)))
+  (check-equal? (interpret (list (I32.Const #x00008000) (I32.Popcnt))
                            (list->vector empty))
                 (list (bv 1 32)))
 
