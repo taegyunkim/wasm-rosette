@@ -64,6 +64,8 @@
 (struct I32.GeU () #:transparent)
 (struct I32.Const (c) #:transparent)
 (struct Local.Get (i) #:transparent)
+(struct Local.Set (i) #:transparent)
+(struct Local.Tee (i) #:transparent)
 
 ;; Interpreter for above instructions
 (define (interpret instrs locals)
@@ -242,6 +244,14 @@
       [(Local.Get i)
        (cons (vector-ref locals i) stack)
        ]
+      [(Local.Set i)
+       (define val (first stack))
+       (vector-set! locals i val)
+       (drop stack 1)]
+      [(Local.Tee i)
+       (define val (first stack))
+       (vector-set! locals i val)
+       stack]
       )
     )
 
@@ -409,5 +419,14 @@
   (check-equal? (interpret (list (I32.Const #x00008000) (I32.Popcnt))
                            (list->vector empty))
                 (list (bv 1 32)))
+
+  ;; local.set tests
+  (check-equal? (interpret (list (I32.Const 5) (Local.Set 0) (Local.Get 0))
+                           (list->vector (list (bv 0 32))))
+                (list (bv 5 32)))
+  (check-equal? (interpret (list (I32.Const 4) (Local.Tee 0) (Local.Get 0)
+                                 (I32.Add))
+                           (list->vector (list (bv 0 32))))
+                (list (bv 8 32)))
 
   )
